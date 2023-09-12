@@ -637,6 +637,27 @@ public final class Repository {
     }
   }
 
+  public func statusEntriesWithOptions(_ flags: UInt32 = GIT_STATUS_OPT_INCLUDE_UNTRACKED.rawValue | GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS.rawValue) throws -> [StatusEntry] {
+    var options = git_status_options()
+    git_status_options_init(&options, UInt32(GIT_STATUS_OPTIONS_VERSION))
+    options.flags = flags
+    let statusList = try GitError.checkAndReturn(apiName: "git_status_list_new", closure: { pointer in
+      git_status_list_new(&pointer, repositoryPointer, &options)
+    })
+    defer {
+      git_status_list_free(statusList)
+    }
+    let entryCount = git_status_list_entrycount(statusList)
+    let entries = (0 ..< entryCount).compactMap { index -> StatusEntry? in
+      let statusPointer = git_status_byindex(statusList, index)
+      guard let status = statusPointer?.pointee else {
+        return nil
+      }
+        return StatusEntry(status)
+    }
+    return entries  
+  }
+
   /// Possible results from a merge operation.
   public enum MergeResult: Equatable {
     /// We fast-forwarded the current branch to a new commit.
